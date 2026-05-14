@@ -12,9 +12,13 @@ import com.fatesg.biblioteca.interfaces.ServidorDeDadosSalarioInterface;
 import com.fatesg.config.RmiConfig;
 
 public class ServidorDeDadosSalarioApi implements ServidorDeDadosSalarioInterface {
+
     private ArrayList<ServidorDeDadosSalarioInterface> servidores;
 
+    private int indiceServidor = 0;
+
     public void Conectar() {
+
         if (this.servidores != null && !this.servidores.isEmpty()) {
             this.servidores.clear();
         } else {
@@ -22,65 +26,98 @@ public class ServidorDeDadosSalarioApi implements ServidorDeDadosSalarioInterfac
         }
 
         AddServico(RmiConfig.RMI_SERVICE_NAME, RmiConfig.RMI_HOST, RmiConfig.RMI_PORT);
-        
+
         AddServico(RmiConfig.RMI_SERVICE_NAME, RmiConfig.RMI_HOST_SECOND, RmiConfig.RMI_PORT_SECOND);
 
         if (this.servidores.isEmpty()) {
-            System.err.println("Nenhum servidor de departamentos disponível. Verifique as conexões RMI.");
+            System.err.println("Nenhum servidor de salários disponível. Verifique as conexões RMI.");
         }
     }
 
     private void AddServico(String serviceName, String host, int port) {
+
         try {
+
             Registry registry = LocateRegistry.getRegistry(host, port);
+
             var servico = (ServidorDeDadosSalarioInterface) registry.lookup(serviceName);
+
             this.servidores.add(servico);
+
         } catch (RemoteException e) {
-            System.err.println("Erro na comunicação com o servidor no construtor de DepartamentosService:");
-            // e.printStackTrace();
+
+            System.err.println("Erro na comunicação com o servidor no construtor de SalariosService:");
+
         } catch (NotBoundException e) {
-            System.err.println("Serviço não encontrado no registry no construtor de DepartamentosService:");
-            // e.printStackTrace();
+
+            System.err.println("Serviço não encontrado no registry no construtor de SalariosService:");
         }
+    }
+
+    private ServidorDeDadosSalarioInterface getProximoServidor() {
+
+        if (this.servidores == null || this.servidores.isEmpty()) {
+            throw new RuntimeException("Nenhum servidor disponível.");
+        }
+
+        var servidor = this.servidores.get(indiceServidor);
+
+        indiceServidor = (indiceServidor + 1) % this.servidores.size();
+
+        return servidor;
     }
 
     @Override
     public List<SalarioDto> listarSalarios(int limite, int offset) throws RemoteException {
-        for (var s : this.servidores) {
-            try {
-                var salarios = s.listarSalarios(limite, offset);
-                return salarios;
-            } catch (RemoteException e) {
-                System.err.println("[" + s.toString() + "] Erro na comunicação com o servidor no getListarSalarios:");
-            }
+
+        var s = getProximoServidor();
+
+        try {
+
+            return s.listarSalarios(limite, offset);
+
+        } catch (RemoteException e) {
+
+            System.err.println(
+                    "[" + s.toString() + "] Erro na comunicação com o servidor no getListarSalarios:");
+
+            throw new RemoteException("Erro ao listar salários.");
         }
-        throw new RemoteException("Nenhum servidor disponível para listar salários.");
     }
 
     @Override
     public int obterQtdeSalarios() throws RemoteException {
-        for (var s : this.servidores) {
-            try {
-                var qtde = s.obterQtdeSalarios();
-                return qtde;
-            } catch (RemoteException e) {
-                System.err.println("[" + s.toString() + "] Erro na comunicação com o servidor no getQtdeSalarios:");
-            }
+
+        var s = getProximoServidor();
+
+        try {
+
+            return s.obterQtdeSalarios();
+
+        } catch (RemoteException e) {
+
+            System.err.println(
+                    "[" + s.toString() + "] Erro na comunicação com o servidor no getQtdeSalarios:");
+
+            throw new RemoteException("Erro ao obter quantidade de salários.");
         }
-        throw new RemoteException("Nenhum servidor disponível para obter quantidade de salários.");
     }
 
     @Override
     public SalarioDto obterSalarioPorId(int id) throws RemoteException {
-        for (var s : this.servidores) {
-            try {
-                var salario = s.obterSalarioPorId(id);
-                return salario;
-            } catch (RemoteException e) {
-                System.err.println("[" + s.toString() + "] Erro na comunicação com o servidor no obterSalarioPorId: "+id);
-            }
-        }
-        throw new RemoteException("Nenhum servidor disponível para obter salários.");
 
+        var s = getProximoServidor();
+
+        try {
+
+            return s.obterSalarioPorId(id);
+
+        } catch (RemoteException e) {
+
+            System.err.println(
+                    "[" + s.toString() + "] Erro na comunicação com o servidor no obterSalarioPorId: " + id);
+
+            throw new RemoteException("Erro ao obter salário.");
+        }
     }
 }
