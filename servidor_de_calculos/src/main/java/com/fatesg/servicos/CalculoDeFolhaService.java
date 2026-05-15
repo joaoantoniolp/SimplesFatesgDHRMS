@@ -25,12 +25,28 @@ public class CalculoDeFolhaService implements ServidorDeCalculoFolhaInterface {
             int limit = 50;
             List<SalarioDto> salarios;
             // do {
-                salarios = stub.listarSalarios(limit, offset);
-                for (SalarioDto salarioDto : salarios) {
-                    ReciboDto recibo = calcularReciboDePagamento(salarioDto.getIdFuncionario(), mes, ano, descontos);
-                    folha.addRecibo(recibo);
-                }
-                offset++;
+            salarios = stub.listarSalarios(limit, offset);
+            for (SalarioDto salarioDto : salarios) {
+
+                double salarioBruto = salarioDto.getValor() / 12;
+
+                ReciboDto recibo = new ReciboDto(
+                        mes,
+                        ano,
+                        salarioDto.getIdFuncionario(),
+                        new SalarioDto(salarioDto.getIdFuncionario(), salarioBruto));
+
+                descontos.forEach((k, v) -> {
+                    recibo.addDesconto(k, v);
+                });
+
+                double salarioLiquido = calcularSalarioLiquido(salarioBruto, descontos);
+
+                recibo.setSalarioLiquido(salarioLiquido);
+
+                folha.addRecibo(recibo);
+            }
+            offset++;
             // } while (salarios.size() > 0);
             return folha;
         } catch (Exception e) {
